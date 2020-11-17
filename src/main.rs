@@ -17,18 +17,26 @@ fn main() {
             .long("toggle_version")
             .help("If true, adds/removes components every collision")
             .takes_value(true))
+        .arg(clap::Arg::with_name("max_iter")
+            .short("m")
+            .long("max_iter")
+            .help("How many iterations to run")
+            .takes_value(true))
         .get_matches();
 
     let room_size = matches.value_of("room_size").unwrap_or("10.0").parse::<f32>().unwrap_or(10.0);
     let toggle = matches.value_of("toggle_version").unwrap_or("true").parse::<bool>().unwrap_or(false);
+    let max_iter = matches.value_of("max_iter").unwrap_or("100000").parse::<i32>().unwrap_or(100000);
 
     App::build()
         .add_resource(Room{x: room_size/2.0, y: room_size/2.0})
-        .add_plugins(DefaultPlugins)
+        .add_resource(Counter{current: 0, max: max_iter})
+        .add_plugins(MinimalPlugins)
         .add_startup_system(start.system())
         .add_resource(Time::default())
         .add_system(update_positions.system())
         .add_system(if toggle {check_collisions_toggle.system()} else {check_collisions.system()})
+        .add_system(count_then_exit.system())
         .run();
 }
 
@@ -176,4 +184,18 @@ fn check_collisions_toggle(mut commands: Commands, room: Res<Room>, time: Res<Ti
     }
 
     println!("{} TOGGLED", time.delta_seconds_f64);
+}
+
+struct Counter{
+    current: i32,
+    max: i32,
+}
+
+fn count_then_exit(mut exit: ResMut<Events<AppExit>>, mut counter: ResMut<Counter>){
+    if counter.current < counter.max{
+        counter.current += 1;
+    }
+    else{
+        exit.send(AppExit{});
+    }
 }
